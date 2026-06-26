@@ -1,4 +1,4 @@
-// ── world.js ───────────────────────────────────────────────────────────────
+// ── VoxelWorld — world.js ──────────────────────────────────────────────────
 
 const GRID_SIZE   = 80;
 const TILE_SIZE   = 1;
@@ -16,38 +16,31 @@ const COLORS = [
   '#87ceeb','#dda0dd','#f0e68c','#ff69b4',
 ];
 
-let selectedColor  = COLORS[6];
-let hoveredTile    = null;
-const voxels       = {};
-let mapInstance    = null;
-let mode           = 'map'; // 'map' | 'voxel'
-
-window._lastPlaceTime = window._lastPlaceTime || -COOLDOWN_MS;
+let selectedColor     = COLORS[6];
+let hoveredTile       = null;
+const voxels          = {};
+let mode              = 'map';
+let lastPlaceTime     = -COOLDOWN_MS;
+let mapInstance       = null;
 
 // ── Leaflet map ────────────────────────────────────────────────────────────
 function initMap() {
   mapInstance = L.map('map', { zoomControl: true }).setView([20, 0], 2);
 
-  // Satellite layer (ESRI - 100% free)
   const satellite = L.tileLayer(
     'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
     { attribution: 'ESRI', maxZoom: 19 }
   );
-
-  // Relief / terrain layer (OpenTopoMap - 100% free)
   const terrain = L.tileLayer(
     'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
     { attribution: 'OpenTopoMap', maxZoom: 17 }
   );
-
-  // Street (OpenStreetMap - fallback)
   const street = L.tileLayer(
     'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
     { attribution: 'OSM', maxZoom: 19 }
   );
 
   satellite.addTo(mapInstance);
-
   L.control.layers({
     '🛰 Satellite': satellite,
     '🏔 Relief':    terrain,
@@ -55,8 +48,8 @@ function initMap() {
   }).addTo(mapInstance);
 }
 
-// ── Three.js scene ─────────────────────────────────────────────────────────
-let renderer, scene, camera, animFrameId;
+// ── Three.js ───────────────────────────────────────────────────────────────
+let renderer, scene, camera;
 let theta = 0.6, phi = 0.9, radius = 50;
 const target = new THREE.Vector3(0, 0, 0);
 const tiles  = [];
@@ -64,19 +57,16 @@ let highlight, ghost;
 
 function initThreeJS() {
   const canvas = document.getElementById('canvas');
-
   renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
   renderer.setPixelRatio(devicePixelRatio);
   renderer.setSize(innerWidth, innerHeight);
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type    = THREE.PCFSoftShadowMap;
 
   scene  = new THREE.Scene();
   camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.1, 200);
   camera.position.set(0, 28, 40);
   camera.lookAt(0, 0, 0);
 
-  // Lights
   scene.add(new THREE.AmbientLight(0x334466, 0.8));
   const sun = new THREE.DirectionalLight(0xffeedd, 1.4);
   sun.position.set(20, 40, 20);
@@ -88,15 +78,12 @@ function initThreeJS() {
   // Ground tiles
   const tileGeo = new THREE.PlaneGeometry(TILE_SIZE - 0.02, TILE_SIZE - 0.02);
   tileGeo.rotateX(-Math.PI / 2);
-
   for (let x = 0; x < GRID_SIZE; x++) {
     for (let z = 0; z < GRID_SIZE; z++) {
-      const mat  = new THREE.MeshLambertMaterial({ color: tileColor(x, z) });
-      const mesh = new THREE.Mesh(tileGeo, mat);
+      const mesh = new THREE.Mesh(tileGeo, new THREE.MeshLambertMaterial({ color: tileColor(x, z) }));
       mesh.receiveShadow = true;
       mesh.position.set(
-        (x - GRID_SIZE/2) * TILE_SIZE + TILE_SIZE/2,
-        0,
+        (x - GRID_SIZE/2) * TILE_SIZE + TILE_SIZE/2, 0,
         (z - GRID_SIZE/2) * TILE_SIZE + TILE_SIZE/2
       );
       mesh.userData = { isTile: true, gx: x, gz: z };
@@ -105,9 +92,9 @@ function initThreeJS() {
     }
   }
 
-  const gridHelper = new THREE.GridHelper(GRID_SIZE, GRID_SIZE, 0x1a2a3a, 0x1a2a3a);
-  gridHelper.position.y = 0.005;
-  scene.add(gridHelper);
+  const grid = new THREE.GridHelper(GRID_SIZE, GRID_SIZE, 0x1a2a3a, 0x1a2a3a);
+  grid.position.y = 0.005;
+  scene.add(grid);
 
   // Highlight
   const hlGeo = new THREE.PlaneGeometry(TILE_SIZE, TILE_SIZE);
@@ -119,23 +106,21 @@ function initThreeJS() {
   scene.add(highlight);
 
   // Ghost cube
-  const ghostGeo = new THREE.BoxGeometry(TILE_SIZE * 0.96, TILE_SIZE * 0.96, TILE_SIZE * 0.96);
-  ghost = new THREE.Mesh(ghostGeo, new THREE.MeshLambertMaterial({
-    color: 0xffffff, transparent: true, opacity: 0.4
-  }));
+  ghost = new THREE.Mesh(
+    new THREE.BoxGeometry(TILE_SIZE*0.96, TILE_SIZE*0.96, TILE_SIZE*0.96),
+    new THREE.MeshLambertMaterial({ color: 0xffffff, transparent: true, opacity: 0.4 })
+  );
   ghost.visible = false;
   scene.add(ghost);
 
   // Stars
   const starPos = [];
-  for (let i = 0; i < 2000; i++) {
+  for (let i = 0; i < 2000; i++)
     starPos.push((Math.random()-0.5)*200, Math.random()*80+5, (Math.random()-0.5)*200);
-  }
   const starGeo = new THREE.BufferGeometry();
   starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPos, 3));
-  scene.add(new THREE.Points(starGeo, new THREE.PointsMaterial({ color:0xaaccff, size:0.15 })));
+  scene.add(new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xaaccff, size: 0.15 })));
 
-  // Orbit controls
   initOrbitControls();
   buildPalette();
   renderLoop();
@@ -151,7 +136,7 @@ function tileColor(x, z) {
   return new THREE.Color(0xdddddd);
 }
 
-// ── Cube management ────────────────────────────────────────────────────────
+// ── Cubes ──────────────────────────────────────────────────────────────────
 const cubeGeo = new THREE.BoxGeometry(TILE_SIZE*0.94, TILE_SIZE*0.94, TILE_SIZE*0.94);
 
 function stackHeight(gx, gz) {
@@ -160,76 +145,33 @@ function stackHeight(gx, gz) {
   return h;
 }
 
-function addCube(gx, gz, height, color, username) {
-  if (voxels[`${gx},${gz},${height}`]) return;
-  const mat  = new THREE.MeshLambertMaterial({ color: new THREE.Color(color) });
-  const mesh = new THREE.Mesh(cubeGeo, mat);
+function addCube(gx, gz, height, color) {
+  if (voxels[`${gx},${gz},${height}`]) return null;
+  const mesh = new THREE.Mesh(cubeGeo, new THREE.MeshLambertMaterial({ color: new THREE.Color(color) }));
   mesh.castShadow = mesh.receiveShadow = true;
   mesh.position.set(
-    (gx - GRID_SIZE/2) * TILE_SIZE + TILE_SIZE/2,
-    height * TILE_SIZE + TILE_SIZE/2,
-    (gz - GRID_SIZE/2) * TILE_SIZE + TILE_SIZE/2
+    (gx - GRID_SIZE/2)*TILE_SIZE + TILE_SIZE/2,
+    height*TILE_SIZE + TILE_SIZE/2,
+    (gz - GRID_SIZE/2)*TILE_SIZE + TILE_SIZE/2
   );
-  mesh.userData = { gx, gz, height, color, username };
+  mesh.userData = { gx, gz, height, color };
   scene.add(mesh);
   voxels[`${gx},${gz},${height}`] = mesh;
   return mesh;
 }
 
-async function placeCube(gx, gz) {
-  if (!window._token) return;
-  if (Date.now() - window._lastPlaceTime < COOLDOWN_MS) return;
-
+function placeCube(gx, gz) {
+  if (Date.now() - lastPlaceTime < COOLDOWN_MS) return;
   const h = stackHeight(gx, gz);
   if (h >= MAX_HEIGHT) return;
-
-  // Optimistic UI
-  const mesh = addCube(gx, gz, h, selectedColor, window._profile?.username);
-  animatePop(mesh);
-  window._lastPlaceTime = Date.now();
-  updateCooldownUI();
-
-  // API call
-  try {
-    const res = await fetch('/api/cubes', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${window._token}`
-      },
-      body: JSON.stringify({ gx, gz, color: selectedColor })
-    });
-
-    if (!res.ok) {
-      // Rollback on error
-      scene.remove(mesh);
-      delete voxels[`${gx},${gz},${h}`];
-      const err = await res.json();
-      console.warn('Place failed:', err.error);
-      if (err.error === 'Cooldown active') window._lastPlaceTime = Date.now();
-    } else {
-      // Update cube count
-      if (window._profile) {
-        window._profile.cubes_placed++;
-        document.getElementById('user-cubes').textContent = `${window._profile.cubes_placed} cubes`;
-      }
-    }
-  } catch (e) {
-    scene.remove(mesh);
-    delete voxels[`${gx},${gz},${h}`];
-    console.error('Network error:', e);
-  }
-}
-
-// Load all existing cubes from API
-async function loadCubes() {
-  try {
-    const res  = await fetch('/api/cubes?limit=10000');
-    const data = await res.json();
-    data.forEach(c => addCube(c.gx, c.gz, c.height, c.color, c.username));
-    console.log(`Loaded ${data.length} cubes`);
-  } catch (e) {
-    console.error('Failed to load cubes:', e);
+  const mesh = addCube(gx, gz, h, selectedColor);
+  if (mesh) {
+    animatePop(mesh);
+    lastPlaceTime = Date.now();
+    updateCooldownUI();
+    // Update cube count
+    const count = Object.keys(voxels).length;
+    document.getElementById('user-cubes').textContent = `${count} cubes`;
   }
 }
 
@@ -237,7 +179,7 @@ function animatePop(mesh) {
   const start = performance.now();
   const tick  = now => {
     const t = Math.min((now - start) / 180, 1);
-    const s = t < 0.6 ? t/0.6*1.12 : 1.12 - (t-0.6)/0.4*0.12;
+    const s = t < 0.6 ? t/0.6*1.12 : 1.12-(t-0.6)/0.4*0.12;
     mesh.scale.setScalar(s);
     if (t < 1) requestAnimationFrame(tick);
     else mesh.scale.setScalar(1);
@@ -248,25 +190,27 @@ function animatePop(mesh) {
 // ── Orbit controls ─────────────────────────────────────────────────────────
 function initOrbitControls() {
   const canvas = document.getElementById('canvas');
-  let isDragging = false, prev = { x:0, y:0 };
+  let isDragging = false, prev = { x:0, y:0 }, moved = false;
 
   canvas.addEventListener('mousedown', e => {
-    if (e.button === 0) { isDragging = true; prev = { x: e.clientX, y: e.clientY }; }
+    if (e.button === 0) { isDragging = true; moved = false; prev = { x: e.clientX, y: e.clientY }; }
   });
   window.addEventListener('mouseup', () => isDragging = false);
   window.addEventListener('mousemove', e => {
     if (isDragging) {
-      theta -= (e.clientX - prev.x) * 0.006;
-      phi    = Math.max(0.15, Math.min(Math.PI/2-0.05, phi - (e.clientY - prev.y) * 0.006));
+      const dx = e.clientX - prev.x, dy = e.clientY - prev.y;
+      if (Math.abs(dx) > 2 || Math.abs(dy) > 2) moved = true;
+      theta -= dx * 0.006;
+      phi    = Math.max(0.15, Math.min(Math.PI/2-0.05, phi - dy*0.006));
       prev   = { x: e.clientX, y: e.clientY };
     }
     updateRaycast(e.clientX, e.clientY);
   });
   canvas.addEventListener('wheel', e => {
-    radius = Math.max(8, Math.min(90, radius + e.deltaY * 0.05));
+    radius = Math.max(8, Math.min(90, radius + e.deltaY*0.05));
   });
-  canvas.addEventListener('click', e => {
-    if (hoveredTile && !isDragging) placeCube(hoveredTile.gx, hoveredTile.gz);
+  canvas.addEventListener('click', () => {
+    if (!moved && hoveredTile) placeCube(hoveredTile.gx, hoveredTile.gz);
   });
 }
 
@@ -282,57 +226,50 @@ function updateRaycast(cx, cy) {
   if (hits.length) {
     const { gx, gz } = hits[0].object.userData;
     hoveredTile = { gx, gz };
-    const wx = (gx - GRID_SIZE/2)*TILE_SIZE + TILE_SIZE/2;
-    const wz = (gz - GRID_SIZE/2)*TILE_SIZE + TILE_SIZE/2;
+    const wx = (gx-GRID_SIZE/2)*TILE_SIZE + TILE_SIZE/2;
+    const wz = (gz-GRID_SIZE/2)*TILE_SIZE + TILE_SIZE/2;
     const h  = stackHeight(gx, gz);
     highlight.position.set(wx, 0.01, wz);
     highlight.visible = true;
     ghost.material.color.set(selectedColor);
-    ghost.position.set(wx, h*TILE_SIZE + TILE_SIZE/2, wz);
-    ghost.visible = Date.now() - window._lastPlaceTime >= COOLDOWN_MS;
-    updateInfoBox(gx, gz);
+    ghost.position.set(wx, h*TILE_SIZE+TILE_SIZE/2, wz);
+    ghost.visible = Date.now() - lastPlaceTime >= COOLDOWN_MS;
+    const lat = ((gz/GRID_SIZE)*180-90).toFixed(2);
+    const lng = ((gx/GRID_SIZE)*360-180).toFixed(2);
+    document.getElementById('info-coords').textContent = `${lat}°, ${lng}°`;
+    document.getElementById('info-height').textContent = `Height: ${h}/${MAX_HEIGHT}`;
   } else {
-    hoveredTile = highlight.visible = ghost.visible = false;
+    hoveredTile = null;
+    highlight.visible = ghost.visible = false;
     document.getElementById('info-coords').textContent = 'Hover a tile';
     document.getElementById('info-height').textContent = '';
-    document.getElementById('info-user').textContent   = '';
   }
-}
-
-function updateInfoBox(gx, gz) {
-  const lat = ((gz/GRID_SIZE)*180-90).toFixed(2);
-  const lng = ((gx/GRID_SIZE)*360-180).toFixed(2);
-  const h   = stackHeight(gx, gz);
-  const top = voxels[`${gx},${gz},${h-1}`];
-  document.getElementById('info-coords').textContent = `${lat}°, ${lng}°`;
-  document.getElementById('info-height').textContent = `Height: ${h}/${MAX_HEIGHT}`;
-  document.getElementById('info-user').textContent   = top ? `by ${top.userData.username}` : '';
 }
 
 // ── Render loop ────────────────────────────────────────────────────────────
 function renderLoop() {
-  animFrameId = requestAnimationFrame(renderLoop);
+  requestAnimationFrame(renderLoop);
   camera.position.set(
-    target.x + radius * Math.sin(phi) * Math.sin(theta),
-    target.y + radius * Math.cos(phi),
-    target.z + radius * Math.sin(phi) * Math.cos(theta)
+    target.x + radius*Math.sin(phi)*Math.sin(theta),
+    target.y + radius*Math.cos(phi),
+    target.z + radius*Math.sin(phi)*Math.cos(theta)
   );
   camera.lookAt(target);
   renderer.render(scene, camera);
 }
 
 // ── Mode toggle ────────────────────────────────────────────────────────────
-document.getElementById('btn-map-mode').addEventListener('click', () => setMode('map'));
+document.getElementById('btn-map-mode').addEventListener('click',   () => setMode('map'));
 document.getElementById('btn-voxel-mode').addEventListener('click', () => setMode('voxel'));
 
 function setMode(m) {
   mode = m;
-  document.getElementById('btn-map-mode').classList.toggle('active',   m === 'map');
-  document.getElementById('btn-voxel-mode').classList.toggle('active', m === 'voxel');
-  document.getElementById('palette-container').classList.toggle('hidden', m === 'map');
-  document.getElementById('cooldown-container').classList.toggle('hidden', m === 'map');
-  document.getElementById('canvas').classList.toggle('active', m === 'voxel');
-  document.getElementById('map').style.pointerEvents = m === 'map' ? 'all' : 'none';
+  document.getElementById('btn-map-mode').classList.toggle('active',   m==='map');
+  document.getElementById('btn-voxel-mode').classList.toggle('active', m==='voxel');
+  document.getElementById('palette-container').classList.toggle('hidden',  m==='map');
+  document.getElementById('cooldown-container').classList.toggle('hidden', m==='map');
+  document.getElementById('canvas').classList.toggle('active', m==='voxel');
+  document.getElementById('map').style.pointerEvents = m==='map' ? 'all' : 'none';
   if (highlight) highlight.visible = false;
   if (ghost)     ghost.visible     = false;
 }
@@ -342,7 +279,7 @@ function buildPalette() {
   const el = document.getElementById('palette');
   COLORS.forEach(c => {
     const s = document.createElement('div');
-    s.className = 'color-swatch' + (c === selectedColor ? ' selected' : '');
+    s.className = 'color-swatch' + (c===selectedColor ? ' selected' : '');
     s.style.background = c;
     s.addEventListener('click', () => {
       selectedColor = c;
@@ -359,10 +296,10 @@ function updateCooldownUI() {
   const bar  = document.getElementById('cooldown-bar');
   const text = document.getElementById('cooldown-text');
   const tick = () => {
-    const pct = Math.min((Date.now() - window._lastPlaceTime) / COOLDOWN_MS, 1);
-    bar.style.width = (pct * 100) + '%';
+    const pct = Math.min((Date.now()-lastPlaceTime)/COOLDOWN_MS, 1);
+    bar.style.width = (pct*100)+'%';
     if (pct < 1) {
-      text.textContent = `Next cube in ${((COOLDOWN_MS - (Date.now()-window._lastPlaceTime))/1000).toFixed(1)}s`;
+      text.textContent = `Next cube in ${((COOLDOWN_MS-(Date.now()-lastPlaceTime))/1000).toFixed(1)}s`;
       requestAnimationFrame(tick);
     } else {
       text.textContent = 'Ready to place!';
@@ -373,17 +310,12 @@ function updateCooldownUI() {
 }
 
 window.addEventListener('resize', () => {
-  if (!camera) return;
-  camera.aspect = innerWidth / innerHeight;
+  camera.aspect = innerWidth/innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
   if (mapInstance) mapInstance.invalidateSize();
 });
 
-// ── Entry point (called from auth.js after login) ──────────────────────────
-window.initWorld = function() {
-  initMap();
-  initThreeJS();
-  loadCubes();
-  updateCooldownUI();
-};
+// ── Init ───────────────────────────────────────────────────────────────────
+initMap();
+initThreeJS();

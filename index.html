@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VoxelWorld — Collaborative 3D Pixel Map</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+  <!-- UI Overlay -->
+  <div id="ui">
+    <div id="logo">🌍 VoxelWorld</div>
+
+    <div id="palette-container">
+      <div id="palette-label">Pick a color</div>
+      <div id="palette"></div>
+    </div>
+
+    <div id="cooldown-container">
+      <div id="cooldown-bar-wrap">
+        <div id="cooldown-bar"></div>
+      </div>
+      <div id="cooldown-text">Ready to place!</div>
+    </div>
+
+    <div id="info-box">
+      <div id="info-coords">Hover a tile to see coords</div>
+      <div id="info-height"></div>
+    </div>
+
+    <div id="controls-hint">
+      🖱 Left drag: rotate &nbsp;|&nbsp; Scroll: zoom &nbsp;|&nbsp; Click tile: place cube
+    </div>
+  </div>
+
+  <canvas id="canvas"></canvas>
+
+  <script src="world.js"></script>
+</body>
+</html>

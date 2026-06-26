@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VoxelWorld — Collaborative 3D Pixel Map</title>
+
+  <!-- Leaflet (mapa base) -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+
+  <!-- Three.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+  <!-- Supabase JS -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- Auth screen -->
+  <div id="auth-screen">
+    <div id="auth-card">
+      <div id="auth-logo">🌍 VoxelWorld</div>
+      <p id="auth-subtitle">Place voxels anywhere on Earth</p>
+      <button class="auth-btn google"  id="btn-google">
+        <img src="https://www.google.com/favicon.ico" width="18" /> Continue with Google
+      </button>
+      <button class="auth-btn discord" id="btn-discord">
+        <img src="https://discord.com/favicon.ico" width="18" /> Continue with Discord
+      </button>
+    </div>
+  </div>
+
+  <!-- Main app -->
+  <div id="app" class="hidden">
+
+    <!-- Map base layer -->
+    <div id="map"></div>
+
+    <!-- Three.js canvas overlay -->
+    <canvas id="canvas"></canvas>
+
+    <!-- UI -->
+    <div id="ui">
+      <div id="top-bar">
+        <div id="logo">🌍 VoxelWorld</div>
+        <div id="user-info">
+          <img id="user-avatar" src="" alt="" />
+          <span id="user-name"></span>
+          <span id="user-cubes">0 cubes</span>
+          <button id="btn-logout">logout</button>
+        </div>
+      </div>
+
+      <!-- Mode toggle -->
+      <div id="mode-toggle">
+        <button class="mode-btn active" id="btn-map-mode">🗺 Map</button>
+        <button class="mode-btn" id="btn-voxel-mode">🧊 Voxels</button>
+      </div>
+
+      <!-- Palette (visible in voxel mode) -->
+      <div id="palette-container" class="hidden">
+        <div id="palette-label">Color</div>
+        <div id="palette"></div>
+      </div>
+
+      <!-- Cooldown -->
+      <div id="cooldown-container" class="hidden">
+        <div id="cooldown-bar-wrap"><div id="cooldown-bar"></div></div>
+        <div id="cooldown-text">Ready to place!</div>
+      </div>
+
+      <!-- Info -->
+      <div id="info-box">
+        <div id="info-coords">Hover a tile</div>
+        <div id="info-height"></div>
+        <div id="info-user"></div>
+      </div>
+
+      <div id="controls-hint">Drag: rotate · Scroll: zoom · Click: place cube</div>
+    </div>
+  </div>
+
+  <script>
+    // Inject env variables (replaced by Vercel at build time)
+    window.SUPABASE_URL  = '__SUPABASE_URL__';
+    window.SUPABASE_ANON = '__SUPABASE_ANON_KEY__';
+  </script>
+  <script src="auth.js"></script>
+  <script src="world.js"></script>
+  <script src="realtime.js"></script>
+</body>
+</html>

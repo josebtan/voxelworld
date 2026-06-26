@@ -1,0 +1,16 @@
+{
+  "name": "voxelworld",
+  "version": "1.0.0",
+  "description": "Collaborative 3D voxel world overlaid on a real map",
+  "main": "api/index.js",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "echo 'No build step needed'"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0"
+  },
+  "devDependencies": {
+    "vercel": "^33.0.0"
+  }
+}
